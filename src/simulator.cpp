@@ -142,8 +142,11 @@ void simulator::Model::SRAI_() {
     // so if there is no prefix 0100000, it is illegal instruction
     assert((immediate_ >> 5) == 0b01000'00);
 
-    registers_[rd_] = rs1_ >> immediate_;
-    registers_[rd_] = get_bytes(31 - immediate_, 31, ((long long int)1 << 32) - 1);
+    int signed_bits = rs1_ & (1 << 31);
+
+    signed_bits *= get_bytes(31 - immediate_, 31, ((long long int)1 << 32) - 1);
+
+    registers_[rd_] =  (rs1_ >> immediate_) | signed_bits;
     registers_[0] = 0;
 }
 
