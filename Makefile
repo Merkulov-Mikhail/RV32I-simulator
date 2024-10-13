@@ -8,7 +8,7 @@ SRC_DIR = ./src
 INC_DIR = ./include
 TES_DIR = ./tests
 TESTS   = $(wildcard $(TES_DIR)/*.txt)
-CPP_SRC = simulator.cpp
+CPP_SRC = simulator.cpp main.cpp
 CPP_INC = $(INC_DIR)/simulator.h
 CPP_OBJ = $(addprefix $(BUILD_DIR)/,$(CPP_SRC:.cpp=.o))
 TESTS_EXECUTABLE ?= some_complex_name_for_tests_big_enough.exe

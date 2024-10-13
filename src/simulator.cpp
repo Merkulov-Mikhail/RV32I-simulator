@@ -26,7 +26,7 @@ int simulator::Model::parse_I_type_(int cmd) {
 
 simulator::Model::Model(const void* ptr_to_program) {
 
-    assert(static_cast<int>(ptr_to_program) % 4 == 0);
+    assert((size_t)(ptr_to_program) % 4 == 0);
 
     user_program_ = static_cast<const int*>(ptr_to_program);
 }
@@ -41,6 +41,7 @@ void simulator::Model::execute() {
     switch (op_code_) {
         case (simulator::instructions::I_TYPE_INST): {
             modified_op_code = parse_I_type_(command);
+            break;
         }
     }
 
@@ -65,14 +66,19 @@ void simulator::Model::execute() {
             XORI_();
             break;
         }
-        case (simulator::instructions::ANDI): {
-            ANDI_();
+        case (simulator::instructions::SR_LA_I): {
+            SR_LA_I_();
             break;
         }
         case (simulator::instructions::ORI):  {
             ORI_();
             break;
         }
+        case (simulator::instructions::ANDI): {
+            ANDI_();
+            break;
+        }
+
     }
 
     pc_++;
@@ -89,32 +95,6 @@ void simulator::Model::SLLI_() {
 
     registers_[rd_] = rs1_ << immediate_;
 
-    registers_[0] = 0;
-}
-
-void simulator::Model::SR_LA_I_() {
-    if (immediate_ & (1 << 10))
-        SRAI_();
-    else
-        SRLI_();
-}
-
-void simulator::Model::SRLI_() {
-    // immediate_ must look like this 0000000XXXXX
-    // so if there is no prefix 0000000, it is illegal instruction
-    assert((immediate_ >> 5) == 0);
-
-    registers_[rd_] = rs1_ >> immediate_;
-    registers_[0] = 0;
-}
-
-void simulator::Model::SRAI_() {
-    // immediate_ must look like this 0100000XXXXX
-    // so if there is no prefix 0100000, it is illegal instruction
-    assert((immediate_ >> 5) == 0b01000'00);
-
-    registers_[rd_] = rs1_ >> immediate_;
-    registers_[rd_] = get_bytes(31 - immediate, 31, (1 << 32) - 1);
     registers_[0] = 0;
 }
 
@@ -141,8 +121,29 @@ void simulator::Model::XORI_() {
     registers_[0] = 0;
 }
 
-void simulator::Model::ANDI_() {
-    registers_[rd_] = registers_[rs1_] & immediate_;
+void simulator::Model::SR_LA_I_() {
+    if (immediate_ & (1 << 10))
+        SRAI_();
+    else
+        SRLI_();
+}
+
+void simulator::Model::SRLI_() {
+    // immediate_ must look like this 0000000XXXXX
+    // so if there is no prefix 0000000, it is illegal instruction
+    assert((immediate_ >> 5) == 0);
+
+    registers_[rd_] = rs1_ >> immediate_;
+    registers_[0] = 0;
+}
+
+void simulator::Model::SRAI_() {
+    // immediate_ must look like this 0100000XXXXX
+    // so if there is no prefix 0100000, it is illegal instruction
+    assert((immediate_ >> 5) == 0b01000'00);
+
+    registers_[rd_] = rs1_ >> immediate_;
+    registers_[rd_] = get_bytes(31 - immediate_, 31, ((long long int)1 << 32) - 1);
     registers_[0] = 0;
 }
 
@@ -151,4 +152,7 @@ void simulator::Model::ORI_() {
     registers_[0] = 0;
 }
 
-
+void simulator::Model::ANDI_() {
+    registers_[rd_] = registers_[rs1_] & immediate_;
+    registers_[0] = 0;
+}

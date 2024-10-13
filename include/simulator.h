@@ -36,14 +36,14 @@ namespace simulator {
         // I-Type start
         void ADDI_   ();
         void SLLI_   ();
-        void SR_LA_I_();
-        void SRLI_   ();
-        void SRAI_   ();
         void SLTI_   ();
         void SLTI_U_ ();
         void XORI_   ();
-        void ANDI_   ();
+        void SR_LA_I_();
+        void SRLI_   ();
+        void SRAI_   ();
         void ORI_    ();
+        void ANDI_   ();
         // I-Type End
 
     public:
