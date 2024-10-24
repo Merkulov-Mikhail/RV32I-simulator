@@ -1,9 +1,14 @@
 #include "simulator.h"
 #include <cassert>
+#include <iostream>
 
 
-int get_bytes(int src, int start, int end) {
-    return src & (((1 << (end + 1)) - 1) - ((1 << start) - 1));
+int get_bits(int src, int start, int end) {
+    return (src & (((1 << (end + 1)) - 1) - ((1 << start) - 1))) >> start;
+}
+
+int get_bits(unsigned int src, int start, int end) {
+    return (src & (((1 << (end + 1)) - 1) - ((1 << start) - 1))) >> start;
 }
 
 int simulator::Model::read_op_code_(int cmd) {
@@ -17,11 +22,28 @@ int simulator::Model::read_op_code_(int cmd) {
 
 // returns modified instruction
 int simulator::Model::parse_I_type_(int cmd) {
-    immediate_  = get_bytes(cmd, 20, 31);
-    rs1_        = get_bytes(cmd, 15, 19);
-    funct3_     = get_bytes(cmd, 12, 14);
-    rd_         = get_bytes(cmd, 7 , 11);
+    u_immediate_ = get_bits((unsigned int)cmd, 20, 31);
+    immediate_   = get_bits(cmd, 20, 31);
+    rs1_         = get_bits(cmd, 15, 19);
+    funct3_      = get_bits(cmd, 12, 14);
+    rd_          = get_bits(cmd, 7 , 11);
     return op_code_ + (funct3_ << 7);
+}
+
+int simulator::Model::parse_U_type_(int cmd) {
+    u_immediate_ = get_bits((unsigned int)cmd, 12, 31);
+    immediate_ = get_bits(cmd, 12, 31);
+    rd_        = get_bits(cmd, 7 , 11);
+    return op_code_;
+}
+
+int simulator::Model::parse_R_type_(int cmd) {
+    funct7_ = get_bits(cmd, 25, 31);
+    rs2_    = get_bits(cmd, 20, 24);
+    rs1_    = get_bits(cmd, 15, 19);
+    funct3_ = get_bits(cmd, 12, 14);
+    rd_     = get_bits(cmd, 7 , 11);
+    return op_code_ + (funct3_ << 7) + (funct7_ << 10);
 }
 
 simulator::Model::Model(const void* ptr_to_program) {
@@ -31,20 +53,25 @@ simulator::Model::Model(const void* ptr_to_program) {
     user_program_ = static_cast<const int*>(ptr_to_program);
 }
 
+int simulator::Model::get_pc() {
+    return (size_t)(user_program_) + (pc_ * 4);
+}
+
 void simulator::Model::execute() {
     int command = user_program_[pc_];
 
     op_code_ = read_op_code_(command);
 
     int modified_op_code = op_code_;
-
     switch (op_code_) {
-        case (simulator::instructions::I_TYPE_INST): {
+        case (simulator::instructions::I_TYPE_INST):
             modified_op_code = parse_I_type_(command);
             break;
-        }
+        case (simulator::instructions::AUIPC):
+        case (simulator::instructions::LUI  ):
+            modified_op_code = parse_U_type_(command);
+            break;
     }
-
     switch (modified_op_code) {
         case (simulator::instructions::ADDI): {
             ADDI_();
@@ -78,7 +105,50 @@ void simulator::Model::execute() {
             ANDI_();
             break;
         }
-
+        case (simulator::instructions::AUIPC): {
+            AUIPC_();
+            break;
+        }
+        case (simulator::instructions::LUI): {
+            LUI_();
+            break;
+        }
+        case (simulator::instructions::ADD): {
+            ADD_();
+            break;
+        }
+        case (simulator::instructions::SUB): {
+            SUB_();
+            break;
+        }
+        case (simulator::instructions::SLL): {
+            SLL_();
+            break;
+        }
+        case (simulator::instructions::SLT_U): {
+            SLT_U_();
+            break;
+        }
+        case (simulator::instructions::AND): {
+            AND_();
+            break;
+        }
+        case (simulator::instructions::OR): {
+            OR_();
+            break;
+        }
+        case (simulator::instructions::XOR): {
+            XOR_();
+            break;
+        }
+        case (simulator::instructions::SRL): {
+            SRL_();
+            break;
+        }
+        case (simulator::instructions::SRA): {
+            SRA_();
+            break;
+        }
     }
 
     pc_++;
@@ -93,7 +163,7 @@ void simulator::Model::SLLI_() {
     // shift must be located in first 5 bits of immediate
     assert((immediate_ >> 5) == 0);
 
-    registers_[rd_] = rs1_ << immediate_;
+    registers_[rd_] = registers_[rs1_] << immediate_;
 
     registers_[0] = 0;
 }
@@ -108,7 +178,7 @@ void simulator::Model::SLTI_() {
 }
 
 void simulator::Model::SLTI_U_() {
-    if ((unsigned int) registers_[rs1_] < (unsigned int) immediate_)
+    if ((unsigned int) registers_[rs1_] < u_immediate_)
         registers_[rd_] = 1;
     else
         registers_[rd_] = 0;
@@ -133,7 +203,7 @@ void simulator::Model::SRLI_() {
     // so if there is no prefix 0000000, it is illegal instruction
     assert((immediate_ >> 5) == 0);
 
-    registers_[rd_] = rs1_ >> immediate_;
+    registers_[rd_] = registers_[rs1_] >> immediate_;
     registers_[0] = 0;
 }
 
@@ -142,11 +212,11 @@ void simulator::Model::SRAI_() {
     // so if there is no prefix 0100000, it is illegal instruction
     assert((immediate_ >> 5) == 0b01000'00);
 
-    int signed_bits = rs1_ & (1 << 31);
+    int signed_bits = registers_[rs1_] & (1 << 31);
 
-    signed_bits *= get_bytes(31 - immediate_, 31, ((long long int)1 << 32) - 1);
+    signed_bits *= get_bits((int)(((long long int)1 << 32) - 1), 31 - immediate_, 31);
 
-    registers_[rd_] =  (rs1_ >> immediate_) | signed_bits;
+    registers_[rd_] =  (registers_[rs1_] >> immediate_) | signed_bits;
     registers_[0] = 0;
 }
 
@@ -158,4 +228,83 @@ void simulator::Model::ORI_() {
 void simulator::Model::ANDI_() {
     registers_[rd_] = registers_[rs1_] & immediate_;
     registers_[0] = 0;
+}
+
+void simulator::Model::LUI_() {
+    registers_[rd_] = immediate_ << 12;
+    registers_[0] = 0;
+}
+
+void simulator::Model::AUIPC_() {
+    registers_[rd_] = get_pc() + (immediate_ << 12);
+    registers_[0] = 0;
+}
+
+void simulator::Model::ADD_() {
+    registers_[rd_] = registers_[rs1_] + registers_[rs2_];
+    registers_[0] = 0;
+}
+
+void simulator::Model::SUB_() {
+    registers_[rd_] = registers_[rs1_] - registers_[rs2_];
+    registers_[0] = 0;
+}
+
+void simulator::Model::SLL_() {
+    registers_[rd_] = registers_[rs1_] << get_bits(registers_[rs2_], 0, 4);
+    registers_[0] = 0;
+}
+
+void simulator::Model::SLT_() {
+    registers_[rd_] = (int)registers_[rs1_] < (int)registers_[rs2_];
+    registers_[0] = 0;
+}
+
+void simulator::Model::SLT_U_() {
+    registers_[rd_] = (unsigned int)registers_[rs1_] < (unsigned int) registers_[rs2_];
+    registers_[0] = 0;
+}
+
+void simulator::Model::AND_() {
+    registers_[rd_] = registers_[rs1_] & registers_[rs2_];
+    registers_[0] = 0;
+}
+
+void simulator::Model::OR_() {
+    registers_[rd_] = registers_[rs1_] | registers_[rs2_];
+    registers_[0] = 0;
+}
+
+void simulator::Model::XOR_() {
+    registers_[rd_] = registers_[rs1_] ^ registers_[rs2_];
+    registers_[0] = 0;
+}
+
+void simulator::Model::SRL_() {
+    registers_[rd_] = registers_[rs1_] >> get_bits(registers_[rs2_], 0, 4);
+    registers_[0] = 0;
+}
+
+void simulator::Model::SRA_() {
+    int signed_bits = rs1_ & (1 << 31);
+    int reg_value = get_bits(registers_[rs2_], 0, 4);;
+
+    signed_bits *= get_bits((int)(((long long int)1 << 32) - 1), 31 - reg_value, 31);
+
+    registers_[rd_] =  (registers_[rs1_] >> reg_value) | signed_bits;
+    registers_[0] = 0;
+}
+
+void simulator::Model::get_state(int (&reg)[32], size_t& pc) {
+    pc = pc_;
+    for (int pos = 0; pos < 32; pos++)
+        reg[pos] = registers_[pos];
+}
+
+void simulator::Model::print_state() {
+    std::cout << "-----------Current state of Model-----------\n";
+    std::cout << "pc = " << pc_ << "\n";
+    for (int i = 0; i < 32; i++)
+        std::cout << "x" << i << " = " << registers_[i] << "\n";
+    std::cout << "\n";
 }
