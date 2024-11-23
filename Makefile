@@ -29,8 +29,8 @@ $(CPP_OBJ): $(BUILD_DIR)/%.o : $(SRC_DIR)/%.cpp $(CPP_INC)
 
 FORCE ?=
 .PHONY: _tests
-_tests:  $(SRC_DIR)/tests.cpp $(CPP_INC)
-	@$(CC) $(CFLAGS) $< -o ./$(TESTS_EXECUTABLE)
+_tests:  $(SRC_DIR)/tests.cpp $(SRC_DIR)/simulator.cpp $(CPP_INC)
+	@$(CC) $(CFLAGS) $^ -o ./$(TESTS_EXECUTABLE)
 	@./$(TESTS_EXECUTABLE)
 	@./$(TESTS_EXECUTABLE) $(FORCE) $(TESTS)
 	@rm -rf ./$(TESTS_EXECUTABLE)

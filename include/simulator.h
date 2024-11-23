@@ -42,8 +42,7 @@ namespace simulator {
     class Model {
     private:
         int32_t registers_[32]{};
-        size_t pc_ = 0;
-        const int* user_program_ = nullptr;
+        const char* pc_ = nullptr;
 
         char rs1_, rs2_, op_code_, funct3_, funct7_, rd_;
         int immediate_;
@@ -85,9 +84,8 @@ namespace simulator {
 
     public:
         // serves as initialization
-        Model(const void* ptr_to_program);
+        Model(const char* ptr_to_program);
 
-        int  get_pc();
         void execute();
 
         void get_state(int (&reg)[32], size_t& pc);

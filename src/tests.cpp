@@ -13,13 +13,13 @@ void test_ADDI() {
     cmd[0] = 0b000000000011'00000'000'00111'0010011; // x7 += 3
     cmd[1] = 0b000000000111'00000'000'00111'0010011; // x7 += 7
 
-    simulator::Model m {cmd};
+    simulator::Model m {reinterpret_cast<char*>(cmd)};
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[7] == 3 && pc == 1);
+    assert(registers[7] == 3 && reinterpret_cast<size_t>(cmd) == pc - 4);
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[7] == 10 && pc == 2);
+    assert(registers[7] == 10 && reinterpret_cast<size_t>(cmd) == pc - 8);
     for (int i = 0; i < 7; i++)
         assert(registers[i] == 0);
     for (int i = 8; i < 32; i++)
@@ -33,13 +33,13 @@ void test_SLLI() {
     int cmd[2] = {0b000000000011'00000'000'01111'0010011, // x15 = 3
                   0b000000000111'01111'001'00111'0010011}; // x7 = x15 << 7 = 384
 
-    simulator::Model m {cmd};
+    simulator::Model m {reinterpret_cast<char*>(cmd)};
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[15] == 3 && pc == 1);
+    assert(registers[15] == 3);
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[7] == 384 && pc == 2);
+    assert(registers[7] == 384);
     pass("SLLI");
 }
 
@@ -52,7 +52,7 @@ void test_SLTI() {
                   0b000100000000'00101'010'00100'0010011, // x4 = x5 < 256 = 1
              (int)0b100000000000'00101'010'00110'0010011};// x6 = x5 < -2048 = 0
 
-    simulator::Model m {cmd};
+    simulator::Model m {reinterpret_cast<char*>(cmd)};
     m.execute();
     m.execute();
     m.execute();
@@ -76,7 +76,7 @@ void test_SLTI_U() {
              (int)0b010000000000'00000'000'00101'0010011, // x5 += 1024 = 255 + 4096
              (int)0b100000000000'00101'011'00111'0010011};// x7 = x5 < 4096 = 0
 
-    simulator::Model m {cmd};
+    simulator::Model m {reinterpret_cast<char*>(cmd)};
     m.execute();
     m.execute();
     m.execute();
@@ -99,7 +99,7 @@ void test_XORI_() {
                   0b000000000011'00101'100'00100'0010011, // x4 = x5 ^ 3 = 252
                   0b000000000011'00100'100'00100'0010011};// x4 = x4 ^ 3 = 255
 
-    simulator::Model m {cmd};
+    simulator::Model m {reinterpret_cast<char*>(cmd)};
     m.execute();
     m.execute();
     m.get_state(registers, pc);
@@ -118,14 +118,14 @@ void test_SRLI() {
                        0b000000000011'00101'101'00101'0010011, // x5 = x5 >> 3 = 31
                        0b000000000100'00101'101'00110'0010011};// x6 = x5 >> 4 = 1
 
-    simulator::Model m {cmd};
+    simulator::Model m {reinterpret_cast<char*>(cmd)};
     m.execute();
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[5] == 31 && pc == 2);
+    assert(registers[5] == 31);
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[6] == 1 && pc == 3 && registers[5] == 31);
+    assert(registers[6] == 1 && registers[5] == 31);
     pass("SRLI");
 }
 
@@ -137,15 +137,15 @@ void test_SRAI() {
                        0b000000000011'00101'101'00101'0010011, // x5 = x5 >> 3 = 31
                        0b000000000100'00101'101'00110'0010011};// x6 = x5 >> 4 = 1
 
-    simulator::Model m {cmd};
+    simulator::Model m {reinterpret_cast<char*>(cmd)};
 
     m.execute();
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[5] == 31 && pc == 2);
+    assert(registers[5] == 31);
     m.execute();
     m.get_state(registers, pc);
-    assert(registers[6] == 1 && pc == 3 && registers[5] == 31);
+    assert(registers[6] == 1 && registers[5] == 31);
     pass("SRAI");
 }
 

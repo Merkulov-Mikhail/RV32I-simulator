@@ -22,7 +22,7 @@ int simulator::Model::read_op_code_(int cmd) {
 
 // returns modified instruction
 int simulator::Model::parse_I_type_(int cmd) {
-    u_immediate_ = get_bits((unsigned int)cmd, 20, 31);
+    u_immediate_ = get_bits(static_cast<unsigned int>(cmd), 20, 31);
     immediate_   = get_bits(cmd, 20, 31);
     rs1_         = get_bits(cmd, 15, 19);
     funct3_      = get_bits(cmd, 12, 14);
@@ -31,7 +31,7 @@ int simulator::Model::parse_I_type_(int cmd) {
 }
 
 int simulator::Model::parse_U_type_(int cmd) {
-    u_immediate_ = get_bits((unsigned int)cmd, 12, 31);
+    u_immediate_ = get_bits(static_cast<unsigned int>(cmd), 12, 31);
     immediate_ = get_bits(cmd, 12, 31);
     rd_        = get_bits(cmd, 7 , 11);
     return op_code_;
@@ -46,19 +46,10 @@ int simulator::Model::parse_R_type_(int cmd) {
     return op_code_ + (funct3_ << 7) + (funct7_ << 10);
 }
 
-simulator::Model::Model(const void* ptr_to_program) {
-
-    assert((size_t)(ptr_to_program) % 4 == 0);
-
-    user_program_ = static_cast<const int*>(ptr_to_program);
-}
-
-int simulator::Model::get_pc() {
-    return (size_t)(user_program_) + (pc_ * 4);
-}
+simulator::Model::Model(const char* ptr_to_program): pc_(ptr_to_program) {}
 
 void simulator::Model::execute() {
-    int command = user_program_[pc_];
+    int command = *reinterpret_cast<const int*>(pc_);
 
     op_code_ = read_op_code_(command);
 
@@ -151,7 +142,7 @@ void simulator::Model::execute() {
         }
     }
 
-    pc_++;
+    pc_+=4;
 }
 
 void simulator::Model::ADDI_() {
@@ -169,7 +160,7 @@ void simulator::Model::SLLI_() {
 }
 
 void simulator::Model::SLTI_() {
-    if ((int) registers_[rs1_] < (int) immediate_)
+    if (registers_[rs1_] < immediate_)
         registers_[rd_] = 1;
     else
         registers_[rd_] = 0;
@@ -178,7 +169,7 @@ void simulator::Model::SLTI_() {
 }
 
 void simulator::Model::SLTI_U_() {
-    if ((unsigned int) registers_[rs1_] < u_immediate_)
+    if (static_cast<unsigned int>(registers_[rs1_]) < u_immediate_)
         registers_[rd_] = 1;
     else
         registers_[rd_] = 0;
@@ -214,7 +205,7 @@ void simulator::Model::SRAI_() {
 
     int signed_bits = registers_[rs1_] & (1 << 31);
 
-    signed_bits *= get_bits((int)(((long long int)1 << 32) - 1), 31 - immediate_, 31);
+    signed_bits *= get_bits(static_cast<int>((1ULL << 32) - 1), 31 - immediate_, 31);
 
     registers_[rd_] =  (registers_[rs1_] >> immediate_) | signed_bits;
     registers_[0] = 0;
@@ -236,7 +227,7 @@ void simulator::Model::LUI_() {
 }
 
 void simulator::Model::AUIPC_() {
-    registers_[rd_] = get_pc() + (immediate_ << 12);
+    registers_[rd_] = reinterpret_cast<size_t>(pc_) + (immediate_ << 12);
     registers_[0] = 0;
 }
 
@@ -256,12 +247,12 @@ void simulator::Model::SLL_() {
 }
 
 void simulator::Model::SLT_() {
-    registers_[rd_] = (int)registers_[rs1_] < (int)registers_[rs2_];
+    registers_[rd_] = registers_[rs1_] < registers_[rs2_];
     registers_[0] = 0;
 }
 
 void simulator::Model::SLT_U_() {
-    registers_[rd_] = (unsigned int)registers_[rs1_] < (unsigned int) registers_[rs2_];
+    registers_[rd_] = registers_[rs1_] < registers_[rs2_];
     registers_[0] = 0;
 }
 
@@ -289,14 +280,14 @@ void simulator::Model::SRA_() {
     int signed_bits = rs1_ & (1 << 31);
     int reg_value = get_bits(registers_[rs2_], 0, 4);;
 
-    signed_bits *= get_bits((int)(((long long int)1 << 32) - 1), 31 - reg_value, 31);
+    signed_bits *= get_bits(static_cast<int>((1LL << 32) - 1), 31 - reg_value, 31);
 
     registers_[rd_] =  (registers_[rs1_] >> reg_value) | signed_bits;
     registers_[0] = 0;
 }
 
 void simulator::Model::get_state(int (&reg)[32], size_t& pc) {
-    pc = pc_;
+    pc = reinterpret_cast<size_t>(pc_);
     for (int pos = 0; pos < 32; pos++)
         reg[pos] = registers_[pos];
 }
