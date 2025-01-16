@@ -46,6 +46,13 @@ int simulator::Model::parse_R_type_(int cmd) {
     return op_code_ + (funct3_ << 7) + (funct7_ << 10);
 }
 
+int simulator::Model::parse_J_type_(int cmd) {
+    immediate_ = (get_bits(cmd, 30, 31) << 20) + (get_bits(cmd, 12, 19) << 12) \
+               + (get_bits(cmd, 20, 21) << 11) + (get_bits(cmd, 21, 30) << 1);
+    rd_ = get_bits(cmd, 7, 11);
+    return op_code_;
+}
+
 simulator::Model::Model(const char* ptr_to_program): pc_(ptr_to_program) {}
 
 void simulator::Model::execute() {
@@ -61,6 +68,12 @@ void simulator::Model::execute() {
         case (simulator::instructions::AUIPC):
         case (simulator::instructions::LUI  ):
             modified_op_code = parse_U_type_(command);
+            break;
+        case (simulator::instructions::JAL ):
+            modified_op_code = parse_J_type_(command);
+            break;
+        case (simulator::instructions::JALR):
+            modified_op_code = parse_I_type_(command);
             break;
     }
     switch (modified_op_code) {
@@ -138,6 +151,10 @@ void simulator::Model::execute() {
         }
         case (simulator::instructions::SRA): {
             SRA_();
+            break;
+        }
+        case (simulator::instructions::JAL): {
+            JAL_();
             break;
         }
     }
@@ -284,6 +301,17 @@ void simulator::Model::SRA_() {
 
     registers_[rd_] =  (registers_[rs1_] >> reg_value) | signed_bits;
     registers_[0] = 0;
+}
+
+void simulator::Model::JAL_() {
+    registers_[rd_] = reinterpret_cast<size_t>(pc_) + 4;
+    pc_ += immediate_;
+}
+
+void simulator::Model::JALR_() {
+    int32_t t = reinterpret_cast<size_t>(pc_) + 4;
+    pc_ = reinterpret_cast<const char*>((registers_[rs1_] + immediate_) & (~1));
+    registers_[rd_] = t;
 }
 
 void simulator::Model::get_state(int (&reg)[32], size_t& pc) {

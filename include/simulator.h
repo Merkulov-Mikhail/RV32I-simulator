@@ -30,13 +30,16 @@ namespace simulator {
         const int ADD   = 0b0000000'000'0110011;
         const int SLT   = 0b0000000'010'0110011;
         const int SLT_U = 0b0000000'011'0110011;
-        const int AND   = 0b0000000'111'0110011; // not implemented
-        const int OR    = 0b0000000'110'0110011; // not implemented
-        const int XOR   = 0b0000000'100'0110011; // not implemented
+        const int AND   = 0b0000000'111'0110011;
+        const int OR    = 0b0000000'110'0110011;
+        const int XOR   = 0b0000000'100'0110011;
         const int SLL   = 0b0000000'001'0110011;
-        const int SRL   = 0b0000000'101'0110011; // not implemented
+        const int SRL   = 0b0000000'101'0110011;
         const int SUB   = 0b0100000'000'0110011;
-        const int SRA   = 0b0100000'101'0110011; // not implemented
+        const int SRA   = 0b0100000'101'0110011;
+
+        const int JAL   = 0b0000000'000'1101111;
+        const int JALR  = 0b0000000'000'1100111;
     };
 
     class Model {
@@ -48,11 +51,11 @@ namespace simulator {
         int immediate_;
         unsigned int u_immediate_;
 
-    private:
         int read_op_code_(int cmd);
         int parse_I_type_(int command);
         int parse_U_type_(int command);
         int parse_R_type_(int command);
+        int parse_J_type_(int command);
         // I-Type Start
         void ADDI_   ();
         void SLLI_   ();
@@ -81,6 +84,9 @@ namespace simulator {
         void SUB_    ();
         void SRA_    ();
         // R-Type End
+
+        void JAL_    ();
+        void JALR_   ();
 
     public:
         // serves as initialization
